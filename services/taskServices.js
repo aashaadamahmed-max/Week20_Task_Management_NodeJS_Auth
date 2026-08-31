@@ -75,25 +75,25 @@ export async function updateTask(id, updateData, userId) {
     if (!existingTask) {
       throw new Error("Task not found");
     }
-
+      
     // Convert status from kebab-case to snake_case for Prisma enum
-    if (updateData.status && updateData.status === "in-progress") {
-      updateData.status = "in_progress";
-    }
+   const { userId: _, subtasks: __, id: ___, ...cleanData } = updateData;
 
-    // Handle dueDate conversion
-    if (updateData.dueDate) {
-      updateData.dueDate = new Date(updateData.dueDate);
-    }
+   if (cleanData.status && cleanData.status === "in-progress") {
+     cleanData.status = "in_progress";
+   }
 
-    const task = await prisma.task.update({
-      where: { id },
-      data: updateData,
-      include: {
-        subtasks: true,
-      },
-    });
+   if (cleanData.dueDate) {
+     cleanData.dueDate = new Date(cleanData.dueDate);
+   }
 
+   const task = await prisma.task.update({
+     where: { id },
+     data: cleanData,
+     include: {
+       subtasks: true,
+     },
+   });
     return task;
   } catch (error) {
     throw new Error(`Error updating task: ${error.message}`);
@@ -178,10 +178,11 @@ export async function updateSubtask(id, updateData, userId) {
     if (!subtask) {
       throw new Error("Subtask not found or access denied");
     }
+    const { id: _, taskId: __, task: ___, ...cleanData } = updateData;
 
     const updatedSubtask = await prisma.subtask.update({
       where: { id },
-      data: updateData,
+      data: cleanData,
     });
 
     return updatedSubtask;
@@ -268,5 +269,64 @@ export async function getSubtasksByTaskId(taskId, userId) {
     return subtasks;
   } catch (error) {
     throw new Error(`Error retrieving subtasks: ${error.message}`);
+  }
+}
+// update user
+export async function updateUser(userId, updateData) {
+  try {
+    const { id: _, createdAt: __, updatedAt: ___, ...cleanData } = updateData;
+
+    if (cleanData.email) {
+      const existingUser = await prisma.user.findUnique({
+        where: { email: cleanData.email },
+      });
+      if (existingUser && existingUser.id !== userId) {
+        throw new Error("Email already in use");
+      }
+    }
+
+    if (cleanData.password) {
+      cleanData.password = await bcrypt.hash(cleanData.password, 10);
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: cleanData,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+    return updatedUser;
+  } catch (error) {
+    throw new Error(`Error updating user: ${error.message}`);
+  }
+}
+
+// Delete User
+export async function deleteUser(userId) {
+  try {
+    const existingUser = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!existingUser) {
+      throw new Error("User not found");
+    }
+
+    const deletedUser = await prisma.user.delete({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+      },
+    });
+    return deletedUser;
+  } catch (error) {
+    throw new Error(`Error deleting user: ${error.message}`);
   }
 }

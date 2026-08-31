@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import prisma from "../lib/prisma.js";
 import { authenticateToken } from "../middleware/auth.js";
+import { updateUser, deleteUser } from "../services/taskServices.js";
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
@@ -25,7 +26,7 @@ router.post("/register", async (req, res) => {
       where:{ email }
     })
     if (exsistingUser) {
-       return res.status(400).json({
+       return res.status(409).json({
         success: false,
         message: "User with this email already exists",
       });
@@ -61,11 +62,8 @@ router.post("/register", async (req, res) => {
     // 6. Return the user data and token
     res.status(201).json({
       success: true,
-      message: "User registered successfully",
-      data: {
-        user: newUser,
-        token: token,
-      },
+      token: token,
+      user: newUser,
     });
 
 
@@ -97,7 +95,7 @@ router.post("/login", async (req, res) => {
       where: { email },
     });
     if (!user) {
-      return res.status(400).json({
+      return res.status(401).json({
         success: false,
         message: "Invalid email or password",
       });
@@ -106,7 +104,7 @@ router.post("/login", async (req, res) => {
     const isPasswordValid = await bcrypt.compare(password, user.password)
 
     if (!isPasswordValid) {
-      return res.status(400).json({
+      return res.status(401).json({
         success: false,
         message: "Invalid email or password",
       });
@@ -123,16 +121,14 @@ router.post("/login", async (req, res) => {
       );
       
     // 5. Return the user data and token
-    
+    const { password: _password, ...userWithoutPassword } = user;
+
     res.status(200).json({
       success: true,
-      message: "login successful",
-      data: {
-        user,
-        token,
-      }
-    })
-    
+      token: token,
+      user: userWithoutPassword,
+    });
+
   } catch (error) {
     console.error("Login error:", error);
     res.status(500).json({
@@ -159,6 +155,38 @@ router.get("/me", authenticateToken, async (req, res) => {
       success: false,
       message: "Error retrieving user profile",
       error: error.message,
+    });
+  }
+});
+// PUT /api/auth/me - Update profile (protected route)
+router.put("/me", authenticateToken, async (req, res) => {
+  try {
+    const updatedUser = await updateUser(req.user.id, req.body);
+    res.json({
+      success: true,
+      data: updatedUser,
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+// DELETE /api/auth/me - Delete account (protected route)
+router.delete("/me", authenticateToken, async (req, res) => {
+  try {
+    const deletedUser = await deleteUser(req.user.id);
+    res.json({
+      success: true,
+      message: "Account deleted successfully",
+      user: deletedUser,
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message,
     });
   }
 });
