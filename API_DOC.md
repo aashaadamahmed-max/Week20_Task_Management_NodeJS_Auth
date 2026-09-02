@@ -1,86 +1,60 @@
-Waa tan dukumentigaaga oo loo kordhiyay route-yada cusub ee Profile Management (`PUT /api/auth/me` iyo `DELETE /api/auth/me`) si uu u noqdo mid dhamaystiran.
-
----
-
-# Task Management API Documentation
+# Task Management API
 
 ## Base URL
 
-* Local development: `http://localhost:3000`
+```text
+http://localhost:3000
+```
 
 ## Authentication
 
-Most routes require a JWT token in the `Authorization` header.
-
-Header format:
+Protected endpoints require:
 
 ```http
-Authorization: Bearer <token>
-
+Authorization: Bearer <jwt-token>
 ```
 
-Example:
+Missing, invalid, expired, or user-less tokens return `401 Unauthorized`.
 
-```bash
-curl -H "Authorization: Bearer <your_token>" http://localhost:3000/api/tasks
+## Response format
 
-```
-
-## Environment Variables
-
-Create a `.env` file in the project root:
-
-```env
-DATABASE_URL="postgresql://user:password@host:5432/dbname"
-JWT_SECRET="your-super-secret-jwt-key"
-PORT=3000
-
-```
-
-## Response Format
-
-Successful responses return:
+Successful responses use:
 
 ```json
 {
   "success": true,
   "data": {}
 }
-
 ```
 
-Error responses return:
+Error responses use either `message` or `error`, depending on the endpoint:
 
 ```json
 {
   "success": false,
-  "message": "Description of the error"
+  "message": "Error description"
 }
-
 ```
 
-## User Model
+## HTTP status codes
 
-```json
-{
-  "id": "cuid",
-  "name": "John Doe",
-  "email": "john@example.com",
-  "password": "hashed-password",
-  "createdAt": "2026-08-28T00:00:00.000Z",
-  "updatedAt": "2026-08-28T00:00:00.000Z"
-}
+| Code | Meaning | Used by |
+| --- | --- | --- |
+| 200 | Request completed successfully | Successful GET, PUT, DELETE, login, and protected responses |
+| 201 | Resource created | Registration, task creation, and subtask creation |
+| 400 | Invalid input or operation error | Login/register validation, task creation/update, subtask creation/update, profile update/delete |
+| 401 | Authentication failed | Missing, invalid, or expired JWT |
+| 404 | Route or resource not found | Unknown routes and some subtask/resource checks |
+| 409 | Conflict | Registration with an existing email |
+| 500 | Unexpected server or database error | Unhandled route, authentication, and server errors |
 
+## Auth endpoints
+
+### Register
+
+```http
+POST /api/auth/register
 ```
-
-Note: Password values are excluded from normal API responses.
-
-## Auth & User Routes
-
-### Register a new user
-
-* Method: `POST`
-* Route: `/api/auth/register`
 
 Request body:
 
@@ -90,29 +64,20 @@ Request body:
   "email": "john@example.com",
   "password": "securePassword123"
 }
-
 ```
 
-Success response (201):
+Responses:
 
-```json
-{
-  "success": true,
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "user": {
-    "id": "cmc123",
-    "name": "John Doe",
-    "email": "john@example.com",
-    "createdAt": "2026-08-28T00:00:00.000Z"
-  }
-}
-
-```
+- `201 Created` - user registered and JWT returned.
+- `400 Bad Request` - `name`, `email`, or `password` is missing.
+- `409 Conflict` - email already exists.
+- `500 Internal Server Error` - registration/database error.
 
 ### Login
 
-* Method: `POST`
-* Route: `/api/auth/login`
+```http
+POST /api/auth/login
+```
 
 Request body:
 
@@ -121,388 +86,229 @@ Request body:
   "email": "john@example.com",
   "password": "securePassword123"
 }
-
 ```
 
-Success response (200):
+Responses:
 
-```json
-{
-  "success": true,
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "user": {
-    "id": "cmc123",
-    "name": "John Doe",
-    "email": "john@example.com",
-    "createdAt": "2026-08-28T00:00:00.000Z",
-    "updatedAt": "2026-08-28T00:00:00.000Z"
-  }
-}
+- `200 OK` - credentials are valid and JWT returned.
+- `400 Bad Request` - email or password is missing.
+- `401 Unauthorized` - email or password is invalid.
+- `500 Internal Server Error` - login/database error.
 
+### Get current profile
+
+```http
+GET /api/auth/me
 ```
 
-### Get current user profile
+Responses:
 
-* Method: `GET`
-* Route: `/api/auth/me`
-* Authentication: Required
+- `200 OK` - current user profile.
+- `401 Unauthorized` - authentication failed.
+- `500 Internal Server Error` - profile retrieval error.
 
-Success response (200):
+### Update current profile
 
-```json
-{
-  "success": true,
-  "data": {
-    "id": "cmc123",
-    "name": "John Doe",
-    "email": "john@example.com",
-    "createdAt": "2026-08-28T00:00:00.000Z"
-  }
-}
-
+```http
+PUT /api/auth/me
 ```
 
-### Update user profile
+Request body may include `name`, `email`, or `password`.
 
-* Method: `PUT`
-* Route: `/api/auth/me`
-* Authentication: Required
+Responses:
 
-Request body:
+- `200 OK` - profile updated.
+- `400 Bad Request` - update failed, including an email conflict.
+- `401 Unauthorized` - authentication failed.
 
-```json
-{
-  "name": "John Updated Doe",
-  "email": "john.new@example.com"
-}
+### Delete current profile
 
+```http
+DELETE /api/auth/me
 ```
 
-Success response (200):
+Responses:
 
-```json
-{
-  "success": true,
-  "data": {
-    "id": "cmc123",
-    "name": "John Updated Doe",
-    "email": "john.new@example.com",
-    "createdAt": "2026-08-28T00:00:00.000Z",
-    "updatedAt": "2026-08-31T00:00:00.000Z"
-  }
-}
+- `200 OK` - account deleted.
+- `400 Bad Request` - deletion failed.
+- `401 Unauthorized` - authentication failed.
 
-```
+## Task endpoints
 
-### Delete user account
-
-* Method: `DELETE`
-* Route: `/api/auth/me`
-* Authentication: Required
-
-Success response (200):
-
-```json
-{
-  "success": true,
-  "message": "Account deleted successfully",
-  "user": {
-    "id": "cmc123",
-    "name": "John Doe",
-    "email": "john@example.com"
-  }
-}
-
-```
-
----
-
-## Task Routes
+All task endpoints require authentication.
 
 ### Get all tasks
 
-* Method: `GET`
-* Route: `/api/tasks`
-* Authentication: Required
-
-Success response:
-
-```json
-{
-  "success": true,
-  "count": 2,
-  "data": [
-    {
-      "id": "tsk_123",
-      "title": "Design landing page",
-      "description": "Create a responsive landing page for the app.",
-      "status": "pending",
-      "priority": "high",
-      "dueDate": "2026-09-01T00:00:00.000Z",
-      "assignedTo": "john@example.com",
-      "createdAt": "2026-08-28T00:00:00.000Z",
-      "updatedAt": "2026-08-28T00:00:00.000Z",
-      "userId": "cmc123",
-      "subtasks": []
-    }
-  ]
-}
-
+```http
+GET /api/tasks
 ```
 
-### Get task by ID
+Responses:
 
-* Method: `GET`
-* Route: `/api/tasks/:id`
-* Authentication: Required
+- `200 OK` - returns the authenticated user's tasks.
+- `401 Unauthorized` - authentication failed.
+- `500 Internal Server Error` - task retrieval error.
+
+### Get one task
+
+```http
+GET /api/tasks/:id
+```
+
+Responses:
+
+- `200 OK` - task returned.
+- `401 Unauthorized` - authentication failed.
+- `500 Internal Server Error` - task lookup error, including a missing task.
 
 ### Create a task
 
-* Method: `POST`
-* Route: `/api/tasks`
-* Authentication: Required
+```http
+POST /api/tasks
+```
 
 Request body:
 
 ```json
 {
   "title": "Design landing page",
-  "description": "Create a responsive landing page for the app.",
+  "description": "Create a responsive landing page.",
   "status": "pending",
   "priority": "high",
   "dueDate": "2026-09-01T00:00:00.000Z",
   "assignedTo": "john@example.com",
-  "subtasks": [
-    {
-      "title": "Review wireframe",
-      "description": "Check the initial sketch with the team.",
-      "completed": false
-    }
-  ]
+  "subtasks": []
 }
-
 ```
 
-Allowed enum values:
+Allowed values:
 
-* Status: `pending`, `in-progress`, `completed`, `cancelled`
-* Priority: `low`, `medium`, `high`, `urgent`
+- `status`: `pending`, `in-progress`, `completed`, `cancelled`
+- `priority`: `low`, `medium`, `high`, `urgent`
 
-Success response (201):
+Responses:
 
-```json
-{
-  "success": true,
-  "data": {
-    "id": "tsk_123",
-    "title": "Design landing page",
-    "description": "Create a responsive landing page for the app.",
-    "status": "pending",
-    "priority": "high",
-    "dueDate": "2026-09-01T00:00:00.000Z",
-    "assignedTo": "john@example.com",
-    "createdAt": "2026-08-28T00:00:00.000Z",
-    "updatedAt": "2026-08-28T00:00:00.000Z",
-    "userId": "cmc123",
-    "subtasks": [
-      {
-        "id": "sub_123",
-        "title": "Review wireframe",
-        "description": "Check the initial sketch with the team.",
-        "completed": false,
-        "taskId": "tsk_123",
-        "createdAt": "2026-08-28T00:00:00.000Z",
-        "updatedAt": "2026-08-28T00:00:00.000Z"
-      }
-    ]
-  }
-}
-
-```
+- `201 Created` - task created.
+- `400 Bad Request` - invalid task data.
+- `401 Unauthorized` - authentication failed.
 
 ### Update a task
 
-* Method: `PUT`
-* Route: `/api/tasks/:id`
-* Authentication: Required
-
-Example request body:
-
-```json
-{
-  "title": "Update landing page design",
-  "status": "in-progress",
-  "priority": "medium"
-}
-
+```http
+PUT /api/tasks/:id
 ```
+
+Responses:
+
+- `200 OK` - task updated.
+- `400 Bad Request` - update error, including a missing task.
+- `401 Unauthorized` - authentication failed.
 
 ### Delete a task
 
-* Method: `DELETE`
-* Route: `/api/tasks/:id`
-* Authentication: Required
+```http
+DELETE /api/tasks/:id
+```
 
----
+Responses:
 
-## Subtask Routes
+- `200 OK` - task deleted.
+- `404 Not Found` - exact `Task not found` error.
+- `500 Internal Server Error` - other deletion errors, including wrapped missing-task errors.
+- `401 Unauthorized` - authentication failed.
 
-### Get all subtasks for a task
+## Subtask endpoints
 
-* Method: `GET`
-* Route: `/api/tasks/:taskId/subtasks`
-* Authentication: Required
+All subtask endpoints require authentication.
 
-### Get a subtask by ID
+### Get subtasks for a task
 
-* Method: `GET`
-* Route: `/api/subtasks/:id`
-* Authentication: Required
+```http
+GET /api/tasks/:taskId/subtasks
+```
+
+Responses:
+
+- `200 OK` - subtasks returned.
+- `404 Not Found` - task is missing or access is denied.
+- `500 Internal Server Error` - other retrieval errors.
+- `401 Unauthorized` - authentication failed.
+
+### Get one subtask
+
+```http
+GET /api/subtasks/:id
+```
+
+Responses:
+
+- `200 OK` - subtask returned.
+- `404 Not Found` - subtask is missing or access is denied.
+- `500 Internal Server Error` - other retrieval errors.
+- `401 Unauthorized` - authentication failed.
 
 ### Create a subtask
 
-* Method: `POST`
-* Route: `/api/tasks/:taskId/subtasks`
-* Authentication: Required
+```http
+POST /api/tasks/:taskId/subtasks
+```
 
 Request body:
 
 ```json
 {
   "title": "Review wireframe",
-  "description": "Check the initial sketch with the team.",
+  "description": "Check the initial sketch.",
   "completed": false
 }
-
 ```
+
+Responses:
+
+- `201 Created` - subtask created.
+- `400 Bad Request` - invalid subtask data.
+- `404 Not Found` - parent task is missing or access is denied.
+- `401 Unauthorized` - authentication failed.
 
 ### Update a subtask
 
-* Method: `PUT`
-* Route: `/api/subtasks/:id`
-* Authentication: Required
+```http
+PUT /api/subtasks/:id
+```
+
+Responses:
+
+- `200 OK` - subtask updated.
+- `400 Bad Request` - update error.
+- `404 Not Found` - subtask is missing or access is denied.
+- `401 Unauthorized` - authentication failed.
 
 ### Delete a subtask
 
-* Method: `DELETE`
-* Route: `/api/subtasks/:id`
-* Authentication: Required
-
----
-
-## Common Errors
-
-### 401 Unauthorized
-
-Returned when the JWT token is missing, invalid, expired, or rejected.
-
-```json
-{
-  "success": false,
-  "message": "Invalid token"
-}
-
+```http
+DELETE /api/subtasks/:id
 ```
 
-### 404 Not Found
+Responses:
 
-Returned when a task or subtask does not exist for the authenticated user.
+- `200 OK` - subtask deleted.
+- `404 Not Found` - subtask is missing or access is denied.
+- `500 Internal Server Error` - other deletion errors.
+- `401 Unauthorized` - authentication failed.
 
-```json
-{
-  "success": false,
-  "error": "Task not found"
-}
+## Additional endpoints
 
+### Protected example
+
+```http
+GET /api/protected
 ```
 
-### 400 Bad Request
+- `200 OK` - authenticated user accepted.
+- `401 Unauthorized` - authentication failed.
 
-Returned when request validation fails or input data is invalid.
+### Unknown route
 
-```json
-{
-  "success": false,
-  "error": "Error processing request"
-}
+Any route not listed in this document returns:
 
-```
-
----
-
-## Example Curl Commands
-
-### Register
-
-```bash
-curl -X POST http://localhost:3000/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "John Doe",
-    "email": "john@example.com",
-    "password": "securePassword123"
-  }'
-
-```
-
-### Login
-
-```bash
-curl -X POST http://localhost:3000/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "john@example.com",
-    "password": "securePassword123"
-  }'
-
-```
-
-### Update Profile
-
-```bash
-curl -X PUT http://localhost:3000/api/auth/me \
-  -H "Authorization: Bearer <token>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "John Updated Doe"
-  }'
-
-```
-
-### Delete Profile
-
-```bash
-curl -X DELETE http://localhost:3000/api/auth/me \
-  -H "Authorization: Bearer <token>"
-
-```
-
-### Get tasks
-
-```bash
-curl -H "Authorization: Bearer <token>" http://localhost:3000/api/tasks
-
-```
-
-### Create a task
-
-```bash
-curl -X POST http://localhost:3000/api/tasks \
-  -H "Authorization: Bearer <token>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "title": "Write API docs",
-    "description": "Document all endpoints clearly.",
-    "status": "pending",
-    "priority": "high"
-  }'
-
-```
-
----
-
-## Notes
-
-* This API is designed for authenticated users; each task belongs to a single user.
-* Task and subtask records are scoped to the authenticated user.
-* All timestamps are returned in ISO 8601 format.
+- `404 Not Found`
