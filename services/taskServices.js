@@ -125,6 +125,9 @@ export async function deleteTask(id, userId) {
 
     return existingTask;
   } catch (error) {
+    if (error.message.includes("not found")) {
+      throw error;
+    }
     throw new Error(`Error deleting task: ${error.message}`);
   }
 }

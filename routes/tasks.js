@@ -100,13 +100,13 @@ router.put("/tasks/:id", async (req, res) => {
       data: updatedTask,
     });
   } catch (error) {
-    if (error.message === "Task not found") {
-      res.status(404).json({
+    if (error.message.includes("not found")) {
+      return res.status(404).json({
         success: false,
         error: error.message,
       });
     } else {
-      res.status(400).json({
+      res.status(500).json({
         success: false,
         error: error.message,
       });
@@ -126,8 +126,8 @@ router.delete("/tasks/:id", async (req, res) => {
       data: deletedTask,
     });
   } catch (error) {
-    if (error.message === "Task not found") {
-      res.status(404).json({
+    if (error.message.includes("not found")) {
+      return res.status(404).json({
         success: false,
         error: error.message,
       });
@@ -154,11 +154,8 @@ router.get("/tasks/:taskId/subtasks", async (req, res) => {
       data: subtasks,
     });
   } catch (error) {
-    if (
-      error.message.includes("not found") ||
-      error.message.includes("access denied")
-    ) {
-      res.status(404).json({
+    if (error.message.includes("not found")) {
+      return res.status(404).json({
         success: false,
         error: error.message,
       });
@@ -182,11 +179,8 @@ router.get("/subtasks/:id", async (req, res) => {
       data: subtask,
     });
   } catch (error) {
-    if (
-      error.message.includes("not found") ||
-      error.message.includes("access denied")
-    ) {
-      res.status(404).json({
+    if (error.message.includes("not found")) {
+      return res.status(404).json({
         success: false,
         error: error.message,
       });
@@ -211,23 +205,19 @@ router.post("/tasks/:taskId/subtasks", async (req, res) => {
       data: newSubtask,
     });
   } catch (error) {
-    if (
-      error.message.includes("not found") ||
-      error.message.includes("access denied")
-    ) {
-      res.status(404).json({
+    if (error.message.includes("not found")) {
+      return res.status(404).json({
         success: false,
         error: error.message,
       });
     } else {
-      res.status(400).json({
+      res.status(500).json({
         success: false,
         error: error.message,
       });
     }
   }
 });
-
 // PUT /api/subtasks/:id - Update subtask
 router.put("/subtasks/:id", async (req, res) => {
   try {
@@ -240,16 +230,13 @@ router.put("/subtasks/:id", async (req, res) => {
       data: updatedSubtask,
     });
   } catch (error) {
-    if (
-      error.message.includes("not found") ||
-      error.message.includes("access denied")
-    ) {
-      res.status(404).json({
+    if (error.message.includes("not found")) {
+      return res.status(404).json({
         success: false,
         error: error.message,
       });
     } else {
-      res.status(400).json({
+      res.status(500).json({
         success: false,
         error: error.message,
       });
@@ -268,11 +255,8 @@ router.delete("/subtasks/:id", async (req, res) => {
       data: deletedSubtask,
     });
   } catch (error) {
-    if (
-      error.message.includes("not found") ||
-      error.message.includes("access denied")
-    ) {
-      res.status(404).json({
+    if (error.message.includes("not found")) {
+      return res.status(404).json({
         success: false,
         error: error.message,
       });
